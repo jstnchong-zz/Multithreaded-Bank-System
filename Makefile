@@ -3,10 +3,10 @@ all:
 	gcc server.c -o server.o
 
 runclient: all
-	./client.o localhost 6969
+	./client.o localhost
 
 runserver: all
-	./server.o 6969
+	./server.o
 
 clean:
 	rm *.o
