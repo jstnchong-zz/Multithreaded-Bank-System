@@ -18,6 +18,21 @@
 #define PORT "3490" // the port client will be connecting to 
 #define MAXDATASIZE 256 // max number of bytes we can get at once 
 
+// prompt the user for input
+void prompt(int sockfd) {
+	printf("> ");
+	char input[MAXDATASIZE];
+	fgets(input, MAXDATASIZE, stdin);
+	if(input[strlen(input) - 1] == '\n') {
+		input[strlen(input) - 1] = '\0';
+	}
+
+	if(send(sockfd, input, strlen(input), 0) == -1) {
+		perror("send");
+	}
+	printf("Sent\t'%s'\n", input);
+}
+
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
 {
@@ -49,44 +64,43 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	// loop through all the results and connect to the first we can
-	for(p = servinfo; p != NULL; p = p->ai_next) {
-		if ((sockfd = socket(p->ai_family, p->ai_socktype,
-				p->ai_protocol)) == -1) {
-			perror("client: socket");
-			continue;
+	while(1) {
+		// loop through all the results and connect to the first we can
+		for(p = servinfo; p != NULL; p = p->ai_next) {
+			if ((sockfd = socket(p->ai_family, p->ai_socktype,
+					p->ai_protocol)) == -1) {
+				continue;
+			}
+
+			if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+				close(sockfd);
+				continue;
+			}
+
+			break;
 		}
 
-		if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-			close(sockfd);
-			perror("client: connect");
-			continue;
+		if (p == NULL) {
+			fprintf(stderr, "Failed to connect, trying again...\n");
+		} else {
+			break;
 		}
-
-		break;
-	}
-
-	if (p == NULL) {
-		fprintf(stderr, "client: failed to connect\n");
-		return 2;
+		// wait for 3 seconds and try again
+		sleep(3);
 	}
 
 	inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
 			s, sizeof s);
-	printf("client: connecting to %s\n", s);
+	printf("Connecting to %s\n", s);
 
-	freeaddrinfo(servinfo); // all done with this structure
+	 // all done with this structure
+	freeaddrinfo(servinfo);
 
 	char input[MAXDATASIZE];
 	char output[MAXDATASIZE];
 	int num_bytes_recieved;
 	while(1) {
-		printf("> ");
-		scanf("%s", input);
-		printf("Sent '%s'\n", input);
-
-		if (send(sockfd, input, strlen(input), 0) == -1)
-			perror("send");
+		prompt(sockfd);
 
 		if ((num_bytes_recieved = recv(sockfd, output, MAXDATASIZE-1, 0)) == -1) {
 			perror("recv");
@@ -95,7 +109,8 @@ int main(int argc, char *argv[])
 
 		output[num_bytes_recieved] = '\0';
 
-		printf("Received '%s'\n", output);
+		printf("%s\n", output);
+		// sleep(2);
 	}
 
 	close(sockfd);
