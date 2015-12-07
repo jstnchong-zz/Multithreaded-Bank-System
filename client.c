@@ -55,6 +55,11 @@ void* responsethread(void* arg) {
 			exit(1);
 		}
 
+		if(num_bytes_recieved == 0) {
+			printf("Session closed by server.\n");
+			exit(1);
+		}
+
 		output[num_bytes_recieved] = '\0';
 
 		printf("%s\n", output);
