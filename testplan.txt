@@ -1,0 +1,35 @@
+JUSTIN CHONG & TRAVIS VANDERSTAD
+ASSIGNMENT 5 TESTPLAN.TXT
+SYSTEMS PROGRAMMING
+
+Test Plan for Multithreaded Client and Multiprocessed Server Bank System
+-------------------------------------------------------------------------
+
+1) First start the client to test if it attempts to connect every 3 seconds until it finds the server.
+	
+
+2) Run the server to test successful connection between client and server.
+
+
+3) Disconnect client from server.
+
+
+4) Disconnect server, all clients will also be disconnected.
+
+
+5) Start Server and Client again. Open an account and start an active session with the account. Program will also throttle commands every two seconds.
+
+
+6) Test credit, debit, balance, and finish commands and make sure the correct messages are displayed.
+
+
+7) Run another client and open another account. Try to start an active session and get denied. Start a different account.
+
+
+8) At this point the server should be printing bank info every 20 seconds correctly.
+
+
+9) We will use the exit command to disconnect from the server.
+
+
+10) We will disconnect from the server.
