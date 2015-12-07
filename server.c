@@ -218,7 +218,6 @@ int main(void) {
 					perror("recv");
 					exit(1);
 				}
-				printf("Recieved\t'%s'\n", input);
 
 				// do things
 				switch(input[0]) {
@@ -309,10 +308,6 @@ int main(void) {
 				// send output
 				if(send(new_fd, output, strlen(output), 0) == -1)
 					perror("send");
-				printf("Sent\t\t'%s'\n", output);
-
-				// report activity
-				// print_bank_state();
 			}
 			close(new_fd);
 			exit(0);

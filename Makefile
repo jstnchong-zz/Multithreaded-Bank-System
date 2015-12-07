@@ -1,6 +1,6 @@
 all:
-	gcc client.c -std=gnu99 -o client.o
-	gcc server.c -std=gnu99 -o server.o
+	gcc client.c -pthread -std=gnu99 -o client.o
+	gcc server.c -pthread -std=gnu99 -o server.o
 
 runclient: all
 	./client.o localhost
