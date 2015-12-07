@@ -94,7 +94,7 @@ int main(void) {
 	int rv;
 
 	// setup memory mapping
-	mmap_fd = open("./bank.txt", O_RDWR | O_APPEND | O_CREAT);
+	mmap_fd = open("./bank.txt", O_RDWR | O_CREAT);
 	mapped_mem = mmap(NULL, FILESIZE, PROT_READ | PROT_WRITE, MAP_SHARED, mmap_fd, 0);
 	numaccounts= 0;
 
