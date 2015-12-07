@@ -323,6 +323,8 @@ int main(void) {
 		}
 		// parent doesn't need this
 		close(new_fd);
+		int status;
+		wait(&status);
 	}
 	
 	pthread_join(print_thread, NULL);

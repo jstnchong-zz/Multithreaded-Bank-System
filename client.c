@@ -67,7 +67,7 @@ void* responsethread(void* arg) {
 }
 
 // to be called at exit in case you forgot to finish your session
-void finish_session() {
+void finish_session(void) {
 	if(send(sockfd, "finish", strlen("finish"), 0) == -1) {
 		perror("send");
 	}
@@ -85,6 +85,8 @@ void *get_in_addr(struct sockaddr *sa)
 
 int main(int argc, char *argv[])
 {
+	atexit(finish_session);
+
 	struct addrinfo hints, *servinfo, *p;
 	int rv;
 	char s[INET6_ADDRSTRLEN];
