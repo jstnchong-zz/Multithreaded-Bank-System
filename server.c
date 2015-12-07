@@ -219,6 +219,11 @@ int main(void) {
 					exit(1);
 				}
 
+				if(num_bytes_recieved == 0) {
+					printf("Connection closed by client.\n");
+					exit(1);
+				}
+
 				// do things
 				switch(input[0]) {
 					case 'o': // open an account

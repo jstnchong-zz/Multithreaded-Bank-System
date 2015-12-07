@@ -56,13 +56,20 @@ void* responsethread(void* arg) {
 		}
 
 		if(num_bytes_recieved == 0) {
-			printf("Session closed by server.\n");
+			printf("Connection closed by server.\n");
 			exit(1);
 		}
 
 		output[num_bytes_recieved] = '\0';
 
 		printf("%s\n", output);
+	}
+}
+
+// to be called at exit in case you forgot to finish your session
+void finish_session() {
+	if(send(sockfd, "finish", strlen("finish"), 0) == -1) {
+		perror("send");
 	}
 }
 
