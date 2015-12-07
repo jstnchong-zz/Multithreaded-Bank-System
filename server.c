@@ -3,7 +3,6 @@
 ** from http://beej.us/guide/bgnet/output/html/singlepage/bgnet.html
 */
 
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
