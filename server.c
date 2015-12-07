@@ -312,7 +312,7 @@ int main(void) {
 				printf("Sent\t\t'%s'\n", output);
 
 				// report activity
-				print_bank_state();
+				// print_bank_state();
 			}
 			close(new_fd);
 			exit(0);
