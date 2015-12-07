@@ -73,6 +73,13 @@ void finish_session(void) {
 	}
 }
 
+void sig_handler(int signo)
+{
+	if (signo == SIGINT) {
+		finish_session();
+	}
+}
+
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
 {
