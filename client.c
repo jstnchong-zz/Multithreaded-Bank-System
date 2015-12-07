@@ -20,6 +20,7 @@
 
 static int sockfd;
 static pthread_attr_t attr;
+static int *sdptr;
 
 // prompt the user for input
 void prompt() {
@@ -75,7 +76,6 @@ int main(int argc, char *argv[])
 	struct addrinfo hints, *servinfo, *p;
 	int rv;
 	char s[INET6_ADDRSTRLEN];
-	int *sdptr;
 
 	if (argc != 2) {
 		fprintf(stderr,"usage: make runclient [hostname]\n");

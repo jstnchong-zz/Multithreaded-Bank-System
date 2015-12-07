@@ -17,6 +17,7 @@
 #include <signal.h>
 #include <sys/mman.h>
 #include <fcntl.h>
+#include <pthread.h>
 
 #define PORT "3490"  // the port users will be connecting to
 #define MAXDATASIZE 64
@@ -29,6 +30,11 @@ typedef struct account {
 	float balance;
 	char insession;
 } account;
+
+static	account* mapped_mem; // mapped memory
+static int sockfd;
+static pthread_attr_t attr;
+static int *sdptr;
 
 int findaccount(char* name, account* mapped_mem, int numaccounts) {
 	for(int i = 0; i < numaccounts; i++) {
@@ -72,6 +78,21 @@ void sigchld_handler(int s) {
 	errno = saved_errno;
 }
 
+void print_bank_state() {
+	printf("----------------------------------------\n");
+	printf("\nCURRENT BANK STATE:\n");
+		for(int i = 0; i < (((int*)mapped_mem)[(FILESIZE/sizeof(int))-1]); i++) {
+			printf("%s\t\t%.2f\n", mapped_mem[i].name, mapped_mem[i].balance);
+		}
+	printf("----------------------------------------\n");
+}
+
+void monitor_bank_state() {
+	while(1) {
+		print_bank_state();
+		sleep(20);
+	}
+}
 
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa) {
@@ -83,19 +104,16 @@ void *get_in_addr(struct sockaddr *sa) {
 
 int main(void) {
 	int sockfd, new_fd;  // listen on sock_fd, new connection on new_fd
-	int mmap_fd, pagesize;
-	account* mapped_mem; // mapped memory
+	int pagesize;
 	struct addrinfo hints, *servinfo, *p;
 	struct sockaddr_storage their_addr; // connector's address information
 	socklen_t sin_size;
 	struct sigaction sa;
-	int yes=1;
+	int yes = 1;
 	char s[INET6_ADDRSTRLEN];
 	int rv;
 
 	// setup memory mapping
-	mmap_fd = open("./bank.txt", O_RDWR | O_CREAT);
-	// mapped_mem = mmap(NULL, FILESIZE, PROT_READ | PROT_WRITE, MAP_SHARED, mmap_fd, 0);
 	mapped_mem = mmap(NULL, FILESIZE, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
 	(((int*)mapped_mem)[(FILESIZE/sizeof(int))-1]) = 0;
 
@@ -152,8 +170,22 @@ int main(void) {
 		exit(1);
 	}
 
-	printf("server: waiting for connections...\n");
+	// spawn a thread to monitor the bank's state
+	pthread_t print_thread;
+	
+	if (pthread_attr_init(&attr) != 0) {
+		perror("client: error in p_thread_attr_init()");
+		exit(EXIT_FAILURE);
+	}
+	
+	sdptr = (int *)malloc(sizeof(int));
+	*sdptr = sockfd;
+	if (pthread_create(&print_thread, &attr, monitor_bank_state, sdptr) != 0) {
+		perror("client: error in creating response thread");
+		exit(EXIT_FAILURE);
+	}
 
+	printf("server: waiting for connections...\n");
 	while(1) {  // main accept() loop
 		sin_size = sizeof their_addr;
 		new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
@@ -186,7 +218,6 @@ int main(void) {
 					perror("recv");
 					exit(1);
 				}
-				printf("----------------------------------------\n");
 				printf("Recieved\t'%s'\n", input);
 
 				// do things
@@ -281,10 +312,7 @@ int main(void) {
 				printf("Sent\t\t'%s'\n", output);
 
 				// report activity
-				printf("\nCURRENT BANK STATE:\n");
-				for(int i = 0; i < (((int*)mapped_mem)[(FILESIZE/sizeof(int))-1]); i++) {
-					printf("%s\t\t%.2f\n", mapped_mem[i].name, mapped_mem[i].balance);
-				}
+				print_bank_state();
 			}
 			close(new_fd);
 			exit(0);
@@ -292,5 +320,8 @@ int main(void) {
 		// parent doesn't need this
 		close(new_fd);
 	}
+	
+	pthread_join(print_thread, NULL);
+
 	return 0;
 }
