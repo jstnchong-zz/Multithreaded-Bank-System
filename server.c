@@ -18,6 +18,7 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <pthread.h>
+#include <signal.h>
 
 #define PORT "3490"  // the port users will be connecting to
 #define MAXDATASIZE 64
