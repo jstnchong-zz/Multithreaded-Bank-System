@@ -82,6 +82,10 @@ void print_bank_state() {
 	printf("----------------------------------------\n");
 	printf("\nCURRENT BANK STATE:\n");
 		for(int i = 0; i < (((int*)mapped_mem)[(FILESIZE/sizeof(int))-1]); i++) {
+            if(mapped_mem[i].insession == 1){
+                printf("%s\t\tIN SERVICE\n", mapped_mem[i].name);
+                continue;
+            }
 			printf("%s\t\t%.2f\n", mapped_mem[i].name, mapped_mem[i].balance);
 		}
 	printf("----------------------------------------\n");
@@ -93,6 +97,8 @@ void monitor_bank_state() {
 		sleep(20);
 	}
 }
+
+
 
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa) {
@@ -209,6 +215,7 @@ int main(void) {
 			char* arg;
 			int num_bytes_recieved;
 			int session = -1;
+            
 			while(1) {
 				for(int i = 0; i < MAXDATASIZE; i++){
 					input[i] = 0;
@@ -223,101 +230,113 @@ int main(void) {
 					printf("Connection closed by client.\n");
 					exit(1);
 				}
+                
+                if (strncmp(input, "open ", 5) == 0) {
+                    arg = argument(input);
+                    if(session != -1) {
+                        strcpy(output, "You cannot open an account with an session started.");
+                    } else {
+                        // look for the account with that name via linear search
+                        session = findaccount(arg, mapped_mem, (((int*)mapped_mem)[(FILESIZE/sizeof(int))-1]));
+                        // if the account was found...
+                        if(session != -1) {
+                            strcpy(output, "An account under that name already exists.");
+                        } else {
+                            mapped_mem[(((int*)mapped_mem)[(FILESIZE/sizeof(int))-1])].insession = 0;
+                            strcpy(mapped_mem[(((int*)mapped_mem)[(FILESIZE/sizeof(int))-1])].name, arg);
+                            mapped_mem[(((int*)mapped_mem)[(FILESIZE/sizeof(int))-1])].balance = 0;
+                            (((int*)mapped_mem)[(FILESIZE/sizeof(int))-1])++;
+                            printf("Created account with name '%s'.\n", arg);
+                            strcpy(output, "Success.");
+                        }
+                    }
+                }
+                
+                else if (strncmp(input, "start ", 6) == 0) {
+                    arg = argument(input);
+                    // find the account with that name via linear search
+                    if(session == -1) {
+                        session = findaccount(arg, mapped_mem, (((int*)mapped_mem)[(FILESIZE/sizeof(int))-1]));
+                        // if the account was not found
+                        if(session == -1) {
+                            strcpy(output, "No accounts under that name exist.");
+                        }
+                        else if(mapped_mem[session].insession != 1) {
+                            mapped_mem[session].insession = 1;
+                            printf("Started session for account '%s'.\n", arg);
+                            strcpy(output, "Success.");
+                        } else {
+                            strcpy(output, "That account is currently being accessed.");
+                        }
+                    }
+                    else if(session != -1) {
+                        strcpy(output, "You already have a session active.");
+                    }
+                }
+                
+                else if (strncmp(input, "credit ", 7) == 0) {
+                    arg = argument(input);
+                    if(session == -1) {
+                        strcpy(output, "You must start a session to credit an account.");
+                    } else {
+                        mapped_mem[session].balance += atof(arg);
+                        printf("Credited '%f' to current account.\n", atof(arg));
+                        strcpy(output, "Success.");
+                    }
+                }
+                
+                else if (strncmp(input, "debit ", 6) == 0) {
+                    arg = argument(input);
+                    if(session == -1) {
+                        strcpy(output, "You must start a session to debit an account.");
+                    } else {
+                        if ((mapped_mem[session].balance - atof(arg)) >= 0 ) {
+                        mapped_mem[session].balance -= atof(arg);
+                        printf("Debited '%f' from current account.\n", atof(arg));
+                        strcpy(output, "Success.");
+                        }
+                        
+                        else if ((mapped_mem[session].balance - atof(arg)) < 0 ) {
+                            printf("Insufficient balance. Unable to debit");
+                            strcpy(output, "Insufficient balance. Unable to debit");
+                        }
+                    }
+                }
+                
+                else if (strncmp(input, "balance", 7) == 0) {
+                    if(session == -1) {
+                        strcpy(output, "You must start a session to get your balance.");
+                    } else {
+                        char balancestr[50];
+                        sprintf(balancestr, "%f", mapped_mem[session].balance);
+                        strcpy(output, strcat("Your balance is ", balancestr));
+                    }
+                }
+                                   
+                else if (strncmp(input, "finish", 6) == 0) {
+                    if(session == -1) {
+                        strcpy(output, "You are not in a session.");
+                    } else {
+                        mapped_mem[session].insession = 0;
+                        session = -1;
+                        printf("Closed session.\n");
+                        strcpy(output, "Success.");
+                    }
+                }
+                
+                else if (strncmp(input, "exit", 4) == 0) {
+                    //need to close this process afterwards...don't know how to lol
+                }
 
-				// do things
-				switch(input[0]) {
-					case 'o': // open an account
-					arg = argument(input);
-					if(session != -1) {
-						strcpy(output, "You cannot open an account with an session started.");
-					} else {
-						// look for the account with that name via linear search
-						session = findaccount(arg, mapped_mem, (((int*)mapped_mem)[(FILESIZE/sizeof(int))-1]));
-						// if the account was found...
-						if(session != -1) {
-							strcpy(output, "An account under that name already exists.");
-						} else {
-							mapped_mem[(((int*)mapped_mem)[(FILESIZE/sizeof(int))-1])].insession = 0;
-							strcpy(mapped_mem[(((int*)mapped_mem)[(FILESIZE/sizeof(int))-1])].name, arg);
-							mapped_mem[(((int*)mapped_mem)[(FILESIZE/sizeof(int))-1])].balance = 0;
-							(((int*)mapped_mem)[(FILESIZE/sizeof(int))-1])++;
-							printf("Created account with name '%s'.\n", arg);
-							strcpy(output, "Success.");
-						}
-					}
-					break;
+                else {
+                    strcpy(output, "Invalid command.");
+                }
 
-					case 's': // start an account session
-					arg = argument(input);
-					// find the account with that name via linear search
-					if(session != -1) {
-						strcpy(output, "You already have a session active.");
-						break;
-					}
-					session = findaccount(arg, mapped_mem, (((int*)mapped_mem)[(FILESIZE/sizeof(int))-1]));
-					// if the account was not found
-					if(session == -1) {
-						strcpy(output, "No accounts under that name exist.");
-					} else if(mapped_mem[session].insession != 1) {
-						mapped_mem[session].insession = 1;
-						printf("Started session for account '%s'.\n", arg);
-						strcpy(output, "Success.");
-					} else {
-						strcpy(output, "That account is currently being accessed.");
-					}
-					break;
-
-					case 'c': // credit an account
-					arg = argument(input);
-					if(session == -1) {
-						strcpy(output, "You must start a session to credit an account.");
-					} else {
-						mapped_mem[session].balance += atof(arg);
-						printf("Credited '%f' to current account.\n", atof(arg));
-						strcpy(output, "Success.");
-					}
-					break;
-
-					case 'd': // debit an account
-					arg = argument(input);
-					if(session == -1) {
-						strcpy(output, "You must start a session to debit an account.");
-					} else {
-						mapped_mem[session].balance -= atof(arg);
-						printf("Debited '%f' from current account.\n", atof(arg));
-						strcpy(output, "Success.");
-					}
-					break;
-
-					case 'b': // get the balance for an account
-					if(session == -1) {
-						strcpy(output, "You must start a session to get your balance.");
-					} else {
-						char balancestr[50];
-						sprintf(balancestr, "%f", mapped_mem[session].balance);
-						strcpy(output, strcat("Your balance is ", balancestr));
-					}
-					break;
-
-					case 'f': // finish up
-					if(session == -1) {
-						strcpy(output, "You are not in a session.");
-					} else {
-						mapped_mem[session].insession = 0;
-						session = -1;
-						printf("Closed session.\n");
-						strcpy(output, "Success.");
-					}
-					break;
-
-					default:
-					strcpy(output, "Invalid command.");
-				}
-
-				// send output
-				if(send(new_fd, output, strlen(output), 0) == -1)
-					perror("send");
+            // send output
+            if(send(new_fd, output, strlen(output), 0) == -1)
+                perror("send");
 			}
+                                   
 			close(new_fd);
 			exit(0);
 		}
