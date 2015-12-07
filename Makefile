@@ -1,6 +1,6 @@
 all:
-	gcc client.c -std=c99 -o client.o
-	gcc server.c -std=c99 -o server.o
+	gcc client.c -std=c11 -o client.o
+	gcc server.c -std=c11 -o server.o
 
 runclient: all
 	./client.o localhost
