@@ -35,6 +35,14 @@ void prompt() {
 		}
 	}
 
+	if(strcmp(input, "exit") == 0) {
+		if(send(sockfd, "finish", strlen("finish"), 0) == -1) {
+			perror("send");
+		}
+		printf("Goodbye!\n");
+		exit(0);
+	}
+
 	if(send(sockfd, input, strlen(input), 0) == -1) {
 		perror("send");
 	}
@@ -67,20 +75,6 @@ void* responsethread(void* arg) {
 	}
 }
 
-// to be called at exit in case you forgot to finish your session
-void finish_session(void) {
-	if(send(sockfd, "finish", strlen("finish"), 0) == -1) {
-		perror("send");
-	}
-}
-
-void sig_handler(int signo)
-{
-	if (signo == SIGINT) {
-		finish_session();
-	}
-}
-
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
 {
@@ -93,8 +87,6 @@ void *get_in_addr(struct sockaddr *sa)
 
 int main(int argc, char *argv[])
 {
-	atexit(finish_session);
-
 	struct addrinfo hints, *servinfo, *p;
 	int rv;
 	char s[INET6_ADDRSTRLEN];

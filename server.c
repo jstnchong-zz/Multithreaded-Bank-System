@@ -227,6 +227,9 @@ int main(void) {
 				}
 
 				if(num_bytes_recieved == 0) {
+					if(session != -1) {
+						mapped_mem[session].insession = 0;
+					}
 					printf("Connection closed by client.\n");
 					exit(1);
 				}
