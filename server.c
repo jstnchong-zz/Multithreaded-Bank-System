@@ -245,6 +245,10 @@ int main(void) {
 					case 's': // start an account session
 					arg = argument(input);
 					// find the account with that name via linear search
+					if(session != -1) {
+						strcpy(output, "You already have a session active.");
+						break;
+					}
 					session = findaccount(arg, mapped_mem, (((int*)mapped_mem)[(FILESIZE/sizeof(int))-1]));
 					// if the account was not found
 					if(session == -1) {
