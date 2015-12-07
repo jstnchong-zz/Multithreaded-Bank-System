@@ -12,25 +12,52 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
-
+#include <pthread.h>
 #include <arpa/inet.h>
 
 #define PORT "3490" // the port client will be connecting to 
 #define MAXDATASIZE 256 // max number of bytes we can get at once 
 
+static int sockfd;
+static pthread_attr_t attr;
+
 // prompt the user for input
-void prompt(int sockfd) {
+void prompt() {
 	printf("> ");
 	char input[MAXDATASIZE];
 	fgets(input, MAXDATASIZE, stdin);
-	if(input[strlen(input) - 1] == '\n') {
-		input[strlen(input) - 1] = '\0';
+	for(int i = 0; i < MAXDATASIZE; i++){
+		if(input[i] == '\n') {
+			input[i] = '\0';
+			break;
+		}
 	}
 
 	if(send(sockfd, input, strlen(input), 0) == -1) {
 		perror("send");
 	}
-	printf("Sent\t'%s'\n", input);
+}
+
+void* commandthread(void *arg) {
+	while(1) {
+		prompt();
+		sleep(2);
+	}
+}
+
+void* responsethread(void* arg) {
+	int num_bytes_recieved;
+	char output[MAXDATASIZE];
+	while(1) {
+		if ((num_bytes_recieved = recv(sockfd, output, MAXDATASIZE-1, 0)) == -1) {
+			perror("recv");
+			exit(1);
+		}
+
+		output[num_bytes_recieved] = '\0';
+
+		printf("%s\n", output);
+	}
 }
 
 // get sockaddr, IPv4 or IPv6:
@@ -45,10 +72,10 @@ void *get_in_addr(struct sockaddr *sa)
 
 int main(int argc, char *argv[])
 {
-	int sockfd;
 	struct addrinfo hints, *servinfo, *p;
 	int rv;
 	char s[INET6_ADDRSTRLEN];
+	int *sdptr;
 
 	if (argc != 2) {
 		fprintf(stderr,"usage: make runclient [hostname]\n");
@@ -96,22 +123,30 @@ int main(int argc, char *argv[])
 	 // all done with this structure
 	freeaddrinfo(servinfo);
 
-	char input[MAXDATASIZE];
-	char output[MAXDATASIZE];
-	int num_bytes_recieved;
-	while(1) {
-		prompt(sockfd);
-
-		if ((num_bytes_recieved = recv(sockfd, output, MAXDATASIZE-1, 0)) == -1) {
-			perror("recv");
-			exit(1);
-		}
-
-		output[num_bytes_recieved] = '\0';
-
-		printf("%s\n", output);
-		// sleep(2);
+	pthread_t cthread;
+	pthread_t rthread;
+	
+	if (pthread_attr_init(&attr) != 0) {
+		perror("client: error in p_thread_attr_init()");
+		exit(EXIT_FAILURE);
 	}
+	
+	sdptr = (int *)malloc(sizeof(int));
+	*sdptr = sockfd;
+	if (pthread_create(&cthread, &attr, commandthread, sdptr) != 0) {
+		perror("client: error in creating in command thread");
+		exit(EXIT_FAILURE);
+	}
+	
+	sdptr = (int *)malloc(sizeof(int));
+	*sdptr = sockfd;
+	if (pthread_create(&rthread, &attr, responsethread, sdptr) != 0) {
+		perror("client: error in creating response thread");
+		exit(EXIT_FAILURE);
+	}
+	
+	pthread_join(cthread, NULL);
+	pthread_join(rthread, NULL);
 
 	close(sockfd);
 

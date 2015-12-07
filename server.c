@@ -19,7 +19,7 @@
 #include <fcntl.h>
 
 #define PORT "3490"  // the port users will be connecting to
-#define MAXDATASIZE 256
+#define MAXDATASIZE 64
 #define FILESIZE 1048576
 
 #define BACKLOG 10     // how many pending connections queue will hold
@@ -32,7 +32,7 @@ typedef struct account {
 
 int findaccount(char* name, account* mapped_mem, int numaccounts) {
 	for(int i = 0; i < numaccounts; i++) {
-		if(strcmp(name, mapped_mem[numaccounts].name) == 0) {
+		if(strcmp(name, mapped_mem[i].name) == 0) {
 			return i;
 		}
 	}
@@ -83,7 +83,7 @@ void *get_in_addr(struct sockaddr *sa) {
 
 int main(void) {
 	int sockfd, new_fd;  // listen on sock_fd, new connection on new_fd
-	int mmap_fd, pagesize, numaccounts;
+	int mmap_fd, pagesize;
 	account* mapped_mem; // mapped memory
 	struct addrinfo hints, *servinfo, *p;
 	struct sockaddr_storage their_addr; // connector's address information
@@ -95,8 +95,9 @@ int main(void) {
 
 	// setup memory mapping
 	mmap_fd = open("./bank.txt", O_RDWR | O_CREAT);
-	mapped_mem = mmap(NULL, FILESIZE, PROT_READ | PROT_WRITE, MAP_SHARED, mmap_fd, 0);
-	numaccounts= 0;
+	// mapped_mem = mmap(NULL, FILESIZE, PROT_READ | PROT_WRITE, MAP_SHARED, mmap_fd, 0);
+	mapped_mem = mmap(NULL, FILESIZE, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
+	(((int*)mapped_mem)[(FILESIZE/sizeof(int))-1]) = 0;
 
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
@@ -166,12 +167,10 @@ int main(void) {
 			s, sizeof s);
 		printf("New connection from %s\n", s);
 
-		if(!fork()) { // this is the child process
-			close(sockfd); // child doesn't need the listener
-
-			// setup memory mapping
-			mmap_fd = open("./bank.txt", O_RDWR | O_APPEND | O_CREAT);
-			mapped_mem = mmap(NULL, FILESIZE, PROT_READ | PROT_WRITE, MAP_SHARED, mmap_fd, 0);
+		// spawn child process
+		if(!fork()) {
+			// child doesn't need the listener
+			close(sockfd);
 
 			char input[MAXDATASIZE];
 			char output[MAXDATASIZE];
@@ -179,15 +178,15 @@ int main(void) {
 			int num_bytes_recieved;
 			int session = -1;
 			while(1) {
-				printf("getting first account name...\n");
-				printf("%x\n", (unsigned int)mapped_mem);
-				printf("first account: %s\n", mapped_mem[0].name);
-
+				for(int i = 0; i < MAXDATASIZE; i++){
+					input[i] = 0;
+				}
 				// recieve input
 				if((num_bytes_recieved = recv(new_fd, input, MAXDATASIZE-1, 0)) == -1) {
 					perror("recv");
 					exit(1);
 				}
+				printf("----------------------------------------\n");
 				printf("Recieved\t'%s'\n", input);
 
 				// do things
@@ -195,19 +194,20 @@ int main(void) {
 					case 'o': // open an account
 					arg = argument(input);
 					if(session != -1) {
-						strcpy(output, "You cannot open an account with an account open.");
+						strcpy(output, "You cannot open an account with an session started.");
 					} else {
 						// look for the account with that name via linear search
-						session = findaccount(arg, mapped_mem, numaccounts);
+						session = findaccount(arg, mapped_mem, (((int*)mapped_mem)[(FILESIZE/sizeof(int))-1]));
 						// if the account was found...
 						if(session != -1) {
 							strcpy(output, "An account under that name already exists.");
 						} else {
+							mapped_mem[(((int*)mapped_mem)[(FILESIZE/sizeof(int))-1])].insession = 0;
+							strcpy(mapped_mem[(((int*)mapped_mem)[(FILESIZE/sizeof(int))-1])].name, arg);
+							mapped_mem[(((int*)mapped_mem)[(FILESIZE/sizeof(int))-1])].balance = 0;
+							(((int*)mapped_mem)[(FILESIZE/sizeof(int))-1])++;
+							printf("Created account with name '%s'.\n", arg);
 							strcpy(output, "Success.");
-							mapped_mem[numaccounts].insession = 0;
-							strcpy(mapped_mem[numaccounts].name, arg);
-							mapped_mem[numaccounts].balance = 0;
-							numaccounts++;
 						}
 					}
 					break;
@@ -215,12 +215,13 @@ int main(void) {
 					case 's': // start an account session
 					arg = argument(input);
 					// find the account with that name via linear search
-					session = findaccount(arg, mapped_mem, numaccounts);
+					session = findaccount(arg, mapped_mem, (((int*)mapped_mem)[(FILESIZE/sizeof(int))-1]));
 					// if the account was not found
 					if(session == -1) {
 						strcpy(output, "No accounts under that name exist.");
 					} else if(mapped_mem[session].insession != 1) {
 						mapped_mem[session].insession = 1;
+						printf("Started session for account '%s'.\n", arg);
 						strcpy(output, "Success.");
 					} else {
 						strcpy(output, "That account is currently being accessed.");
@@ -233,6 +234,7 @@ int main(void) {
 						strcpy(output, "You must start a session to credit an account.");
 					} else {
 						mapped_mem[session].balance += atof(arg);
+						printf("Credited '%f' to current account.\n", atof(arg));
 						strcpy(output, "Success.");
 					}
 					break;
@@ -243,6 +245,7 @@ int main(void) {
 						strcpy(output, "You must start a session to debit an account.");
 					} else {
 						mapped_mem[session].balance -= atof(arg);
+						printf("Debited '%f' from current account.\n", atof(arg));
 						strcpy(output, "Success.");
 					}
 					break;
@@ -261,19 +264,27 @@ int main(void) {
 					if(session == -1) {
 						strcpy(output, "You are not in a session.");
 					} else {
+						mapped_mem[session].insession = 0;
 						session = -1;
+						printf("Closed session.\n");
 						strcpy(output, "Success.");
 					}
 					break;
 
 					default:
-					strcpy(output, "wut");
+					strcpy(output, "Invalid command.");
 				}
 
 				// send output
 				if(send(new_fd, output, strlen(output), 0) == -1)
 					perror("send");
 				printf("Sent\t\t'%s'\n", output);
+
+				// report activity
+				printf("\nCURRENT BANK STATE:\n");
+				for(int i = 0; i < (((int*)mapped_mem)[(FILESIZE/sizeof(int))-1]); i++) {
+					printf("%s\t\t%.2f\n", mapped_mem[i].name, mapped_mem[i].balance);
+				}
 			}
 			close(new_fd);
 			exit(0);
