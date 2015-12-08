@@ -122,7 +122,7 @@ int main(void) {
 
 	// setup memory mapping
 	mapped_mem = mmap(NULL, FILESIZE, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
-	(((int*)mapped_mem)[(FILESIZE/sizeof(int))-1]) = 0;
+	(((int*)mapped_mem)[(FILESIZE/sizeof(int))-1]) = 0; // num accounts is in shared memory
 
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
@@ -242,7 +242,9 @@ int main(void) {
                     arg = argument(input);
                     if(session != -1) {
                         strcpy(output, "You cannot open an account with an session started.");
-                    } else {
+                    } else if((((int*)mapped_mem)[(FILESIZE/sizeof(int))-1]) == 20) {
+                    	strcpy(output, "There cannot be more than 20 accounts.");
+                	} else {
                         // look for the account with that name via linear search
                         session = findaccount(arg, mapped_mem, (((int*)mapped_mem)[(FILESIZE/sizeof(int))-1]));
                         // if the account was found...
