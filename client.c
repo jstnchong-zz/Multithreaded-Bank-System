@@ -35,14 +35,6 @@ void prompt() {
 		}
 	}
 
-	if(strcmp(input, "exit") == 0) {
-		if(send(sockfd, "finish", strlen("finish"), 0) == -1) {
-			perror("send");
-		}
-		printf("Goodbye!\n");
-		exit(0);
-	}
-
 	if(send(sockfd, input, strlen(input), 0) == -1) {
 		perror("send");
 	}

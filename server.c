@@ -230,6 +230,7 @@ int main(void) {
 				if(num_bytes_recieved == 0) {
 					if(session != -1) {
 						mapped_mem[session].insession = 0;
+                        printf("Closed session.\n");
 					}
 					printf("Connection closed by client.\n");
 					exit(1);
@@ -329,19 +330,23 @@ int main(void) {
                 }
                 
                 else if (strncmp(input, "exit", 4) == 0) {
-                    //need to close this process afterwards...don't know how to lol
+                	printf("Exiting process.\n");
+                    exit(0);
                 }
 
                 else {
                     strcpy(output, "Invalid command.");
                 }
 
-            // send output
-            if(send(new_fd, output, strlen(output), 0) == -1)
-                perror("send");
+            	// send output
+            	if(send(new_fd, output, strlen(output), 0) == -1) {
+              		perror("send");
+              	}
+
+              	printf("session = %d\n", session);
 			}
-                                   
 			close(new_fd);
+			printf("Exiting process.\n");
 			exit(0);
 		}
 		// parent doesn't need this
