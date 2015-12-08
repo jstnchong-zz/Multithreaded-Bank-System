@@ -314,7 +314,8 @@ int main(void) {
                     } else {
                         char balancestr[50];
                         sprintf(balancestr, "%f", mapped_mem[session].balance);
-                        strcpy(output, strcat("Your balance is ", balancestr));
+                        strcpy(output, "Your balance is ");
+                        strcpy(output + strlen("Your balance is "), balancestr);
                     }
                 }
                                    
@@ -342,8 +343,6 @@ int main(void) {
             	if(send(new_fd, output, strlen(output), 0) == -1) {
               		perror("send");
               	}
-
-              	printf("session = %d\n", session);
 			}
 			close(new_fd);
 			printf("Exiting process.\n");
