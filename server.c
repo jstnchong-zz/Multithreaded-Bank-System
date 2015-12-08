@@ -211,6 +211,8 @@ int main(void) {
 			// child doesn't need the listener
 			close(sockfd);
 
+			printf("Started process.\n");
+
 			char input[MAXDATASIZE];
 			char output[MAXDATASIZE];
 			char* arg;
