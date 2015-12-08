@@ -119,6 +119,7 @@ int main(void) {
 	char s[INET6_ADDRSTRLEN];
 	int rv;
 
+
 	// setup memory mapping
 	mapped_mem = mmap(NULL, FILESIZE, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
 	(((int*)mapped_mem)[(FILESIZE/sizeof(int))-1]) = 0;

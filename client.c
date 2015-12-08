@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
 	char s[INET6_ADDRSTRLEN];
 
 	if (argc != 2) {
-		fprintf(stderr,"usage: make runclient [hostname]\n");
+		fprintf(stderr,"usage: ./client [hostname]\n");
 		exit(1);
 	}
 
